@@ -153,18 +153,26 @@ def trace_image_pil(image_bytes, num_colors=4, epsilon=1.2):
 def convert_image(image_bytes, num_colors=6, epsilon=1.2):
     if HAS_VTRACER:
         try:
+            # Dynamically map UI controls to vtracer for clean, simplified curves
+            length_thresh = max(3.0, float(epsilon) * 8.0)
+            speckle = max(4, int(float(epsilon) * 8))
+            corner_thresh = min(110, int(60 + float(epsilon) * 15))
+            splice_thresh = min(75, int(45 + float(epsilon) * 10))
+            layer_diff = max(8, min(48, int(192 / max(1, num_colors))))
+            color_prec = 4 if num_colors <= 4 else (5 if num_colors <= 8 else 6)
+
             return vtracer.convert_raw_image_to_svg(
                 image_bytes,
                 colormode='color',
                 hierarchical='stacked',
                 mode='spline',
-                filter_speckle=4,
-                color_precision=6,
-                layer_difference=16,
-                corner_threshold=60,
-                length_threshold=4.0,
+                filter_speckle=speckle,
+                color_precision=color_prec,
+                layer_difference=layer_diff,
+                corner_threshold=corner_thresh,
+                length_threshold=length_thresh,
                 max_iterations=10,
-                splice_threshold=45,
+                splice_threshold=splice_thresh,
                 path_precision=2
             )
         except Exception as e:
