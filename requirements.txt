@@ -1,0 +1,2 @@
+pillow>=10.0.0
+vtracer>=0.6.0

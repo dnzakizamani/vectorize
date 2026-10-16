@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image to SVG Vectorizer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 1rem 2rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+    .status-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 9999px;
+      background: #064e3b;
+      color: #34d399;
+    }
+    main {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .controls {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .dropzone {
+      flex: 1;
+      min-width: 280px;
+      border: 2px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(15, 23, 42, 0.4);
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.05);
+    }
+    .dropzone input { display: none; }
+    .dropzone-label { color: var(--text-muted); font-size: 0.9rem; }
+    .dropzone-label strong { color: var(--accent); }
+
+    .param-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-width: 160px;
+    }
+    .param-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .btn {
+      background: var(--accent);
+      color: #0f172a;
+      font-weight: 600;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: #334155;
+      color: var(--text);
+    }
+    .btn-secondary:hover { background: #475569; }
+
+    .preview-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      min-height: 480px;
+    }
+    @media (max-width: 900px) {
+      .preview-container { grid-template-columns: 1fr; }
+    }
+    .preview-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .preview-header {
+      padding: 0.75rem 1rem;
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .canvas-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      position: relative;
+      background-image:
+        linear-gradient(45deg, #182234 25%, transparent 25%),
+        linear-gradient(-45deg, #182234 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #182234 75%),
+        linear-gradient(-45deg, transparent 75%, #182234 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      overflow: auto;
+    }
+    .canvas-wrapper img, .canvas-wrapper svg {
+      max-width: 100%;
+      max-height: 500px;
+      object-fit: contain;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      background: white;
+      border-radius: 4px;
+    }
+    .loader {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: var(--accent);
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚡ Image to SVG Vectorizer</h1>
+    <span class="status-badge">Ready</span>
+  </header>
+
+  <main>
+    <div class="controls">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="dropzone-label">
+          <strong>Pilih gambar</strong> atau drag-and-drop file di sini
+        </div>
+      </div>
+
+      <div class="param-group">
+        <label>Jumlah Warna: <span id="colorsVal">6</span></label>
+        <input type="range" id="colorsSlider" min="2" max="16" value="6">
+      </div>
+
+      <div class="param-group">
+        <label>Kehalusan Kurva: <span id="smoothVal">1.2</span></label>
+        <input type="range" id="smoothSlider" min="0.5" max="3.0" step="0.1" value="1.2">
+      </div>
+
+      <button class="btn" id="traceBtn" disabled>
+        Proses SVG
+      </button>
+
+      <button class="btn btn-secondary" id="downloadBtn" style="display:none;">
+        Download SVG
+      </button>
+    </div>
+
+    <div class="preview-container">
+      <div class="preview-box">
+        <div class="preview-header">
+          <span>REFERENSI RASTER</span>
+          <span id="imgDimensions">-</span>
+        </div>
+        <div class="canvas-wrapper">
+          <img id="origImg" style="display: none;">
+          <div id="origPlaceholder" style="color: var(--text-muted); font-size: 0.9rem;">
+            Belum ada gambar dipilih
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-box">
+        <div class="preview-header">
+          <span>HASIL VEKTOR SVG</span>
+          <span id="svgStats">-</span>
+        </div>
+        <div class="canvas-wrapper" id="svgTarget">
+          <div class="loader" id="loader">Memproses Vektorisasi...</div>
+          <div id="svgPlaceholder" style="color: var(--text-muted); font-size: 0.9rem;">
+            SVG akan muncul di sini
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const origImg = document.getElementById('origImg');
+    const origPlaceholder = document.getElementById('origPlaceholder');
+    const traceBtn = document.getElementById('traceBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const svgTarget = document.getElementById('svgTarget');
+    const svgPlaceholder = document.getElementById('svgPlaceholder');
+    const loader = document.getElementById('loader');
+    const colorsSlider = document.getElementById('colorsSlider');
+    const colorsVal = document.getElementById('colorsVal');
+    const smoothSlider = document.getElementById('smoothSlider');
+    const smoothVal = document.getElementById('smoothVal');
+    const svgStats = document.getElementById('svgStats');
+    const imgDimensions = document.getElementById('imgDimensions');
+
+    let currentFile = null;
+    let latestSvg = null;
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    colorsSlider.addEventListener('input', (e) => colorsVal.textContent = e.target.value);
+    smoothSlider.addEventListener('input', (e) => smoothVal.textContent = e.target.value);
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) return alert('File harus gambar!');
+      currentFile = file;
+      traceBtn.disabled = false;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        origImg.src = e.target.result;
+        origImg.style.display = 'block';
+        origPlaceholder.style.display = 'none';
+        origImg.onload = () => {
+          imgDimensions.textContent = `${origImg.naturalWidth} × ${origImg.naturalHeight} px`;
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+
+    traceBtn.addEventListener('click', async () => {
+      if (!currentFile) return;
+      loader.style.display = 'flex';
+      traceBtn.disabled = true;
+
+      const formData = new FormData();
+      formData.append('file', currentFile);
+      formData.append('colors', colorsSlider.value);
+      formData.append('smoothness', smoothSlider.value);
+
+      try {
+        const res = await fetch('/api/trace', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        latestSvg = data.svg;
+        svgPlaceholder.style.display = 'none';
+
+        // Render SVG directly
+        const oldSvg = svgTarget.querySelector('svg');
+        if (oldSvg) oldSvg.remove();
+
+        const div = document.createElement('div');
+        div.innerHTML = latestSvg;
+        const newSvg = div.querySelector('svg');
+        if (newSvg) {
+          svgTarget.appendChild(newSvg);
+          downloadBtn.style.display = 'inline-flex';
+          const sizeKb = (new Blob([latestSvg]).size / 1024).toFixed(1);
+          svgStats.textContent = `${sizeKb} KB`;
+        }
+      } catch (err) {
+        alert('Gagal membuat SVG: ' + err.message);
+      } finally {
+        loader.style.display = 'none';
+        traceBtn.disabled = false;
+      }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!latestSvg) return;
+      const blob = new Blob([latestSvg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (currentFile ? currentFile.name.replace(/\.[^/.]+$/, "") : "image") + ".svg";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>
